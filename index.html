@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080a0d" />
+  <title>도플갱어 — 기록 보관소</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital@0;1&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=Orbitron:wght@500;700;800&display=swap');
+
+    :root {
+      --ink: #d9e2df;
+      --muted: #85918f;
+      --deep: #07090b;
+      --panel: rgba(15, 19, 22, .88);
+      --line: rgba(207, 222, 216, .16);
+      --red: #ec3a43;
+      --red-dim: rgba(236, 58, 67, .14);
+      --lime: #b8ec87;
+      --cyan: #9dcbd0;
+      --paper: #d6d1c5;
+      --shadow: 0 20px 60px rgba(0,0,0,.42);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 75% 0%, rgba(89, 38, 44, .16), transparent 35%),
+        radial-gradient(ellipse at 5% 50%, rgba(77, 108, 90, .10), transparent 35%),
+        #07090b;
+      font-family: 'IBM Plex Sans KR', sans-serif;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+      opacity: .16;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 190 190' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.68'/%3E%3C/svg%3E");
+      mix-blend-mode: soft-light;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; }
+
+    /* intro */
+    .broadcast {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      background: #020304;
+      transition: opacity .9s ease, visibility .9s ease;
+    }
+    .broadcast.exit { opacity: 0; visibility: hidden; }
+    .broadcast::before {
+      content: '';
+      position: absolute;
+      inset: -15%;
+      background:
+        radial-gradient(ellipse at center, transparent 26%, rgba(0,0,0,.8) 78%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.038) 0 1px, transparent 1px 4px),
+        linear-gradient(90deg, rgba(95,189,196,.08), transparent 48%, rgba(245,70,82,.08));
+      animation: scanMove 7s linear infinite;
+    }
+    .broadcast::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(transparent 49%, rgba(0,0,0,.18) 50%);
+      background-size: 100% 5px;
+      pointer-events: none;
+    }
+    @keyframes scanMove { from { transform: translateY(-1%); } to { transform: translateY(1%); } }
+    .tv-shell {
+      width: min(910px, 92vw);
+      padding: clamp(18px, 3vw, 34px);
+      position: relative;
+      border: 1px solid rgba(205,232,227,.25);
+      box-shadow: 0 0 0 7px rgba(255,255,255,.025), 0 0 80px rgba(139,220,193,.12), inset 0 0 40px rgba(0,0,0,.6);
+      background: rgba(8, 13, 13, .7);
+    }
+    .tv-shell::before,
+    .tv-shell::after {
+      content: '';
+      position: absolute;
+      width: 14px; height: 14px;
+      border-color: var(--red);
+      border-style: solid;
+      opacity: .75;
+    }
+    .tv-shell::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .tv-shell::after { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+    .signal-top, .signal-bottom {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--cyan);
+      font: 11px 'DM Mono', monospace;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .signal-top span:last-child { color: #ff7279; animation: blink .9s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: .25; } }
+    .ticker {
+      overflow: hidden;
+      margin: 20px 0 34px;
+      border-block: 1px solid rgba(216,233,226,.12);
+      padding: 9px 0;
+      color: #b9c1be;
+      white-space: nowrap;
+      font: 11px 'DM Mono', monospace;
+      letter-spacing: .14em;
+    }
+    .ticker p { margin: 0; display: inline-block; padding-left: 100%; animation: ticker 19s linear infinite; }
+    @keyframes ticker { to { transform: translateX(-100%); } }
+    .broadcast-main { position: relative; z-index: 2; max-width: 740px; }
+    .breaking { display: inline-flex; align-items: center; gap: 8px; padding: 6px 9px; background: var(--red); color: white; font: 700 10px 'DM Mono', monospace; letter-spacing: .12em; }
+    .broadcast h1 {
+      max-width: 11ch;
+      margin: 20px 0 14px;
+      font: 800 clamp(42px, 7vw, 88px)/.99 'Orbitron', 'IBM Plex Sans KR', sans-serif;
+      letter-spacing: -.06em;
+      text-transform: uppercase;
+      text-shadow: 3px 0 rgba(231,58,67,.55), -2px 0 rgba(126,220,217,.45);
+    }
+    .broadcast h1 .kr { font-family: 'IBM Plex Sans KR'; font-size: .47em; letter-spacing: -.08em; display: block; margin-bottom: 13px; color: #d9e9e4; }
+    .glitch {
+      position: relative;
+      display: inline-block;
+      animation: glitchSkew 2.8s infinite steps(2);
+    }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute; left: 0; top: 0; overflow: hidden; width: 100%;
+      clip-path: inset(0 0 0 0);
+      opacity: .7;
+    }
+    .glitch::before { color: #88d8d0; transform: translate(-2px, 0); animation: glitch1 2.6s infinite steps(2); }
+    .glitch::after { color: #ed5157; transform: translate(2px, 0); animation: glitch2 2.2s infinite steps(2); }
+    @keyframes glitchSkew { 3%, 7% { transform: skew(-2deg); } 5%, 9% { transform: skew(2deg); } 10%,100% { transform: none; } }
+    @keyframes glitch1 { 0%, 9%, 100% { clip-path: inset(0 0 100% 0); } 3% { clip-path: inset(12% 0 62% 0); } 5% { clip-path: inset(68% 0 12% 0); } 7% { clip-path: inset(35% 0 37% 0); } }
+    @keyframes glitch2 { 0%, 11%, 100% { clip-path: inset(100% 0 0 0); } 4% { clip-path: inset(50% 0 21% 0); } 6% { clip-path: inset(10% 0 74% 0); } 8% { clip-path: inset(79% 0 4% 0); } }
+    .broadcast-copy { max-width: 56ch; color: #b9c2c0; line-height: 1.85; font-size: clamp(13px, 1.5vw, 16px); }
+    .broadcast-copy b { color: var(--lime); font-weight: 600; }
+    .news-audio {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      color: #e7ecea;
+      font: 12px 'DM Mono', monospace;
+    }
+    .wave { height: 16px; display: flex; align-items: center; gap: 2px; overflow: hidden; }
+    .wave i { width: 2px; height: 45%; background: var(--lime); animation: wave .9s ease-in-out infinite alternate; }
+    .wave i:nth-child(2n) { animation-delay: -.3s; height: 80%; }.wave i:nth-child(3n) { animation-delay: -.6s; height: 25%; }
+    @keyframes wave { to { transform: scaleY(.25); opacity: .35; } }
+    .enter-btn {
+      margin-top: 30px;
+      border: 1px solid rgba(184,236,135,.65);
+      color: var(--lime);
+      background: rgba(184,236,135,.05);
+      padding: 12px 16px;
+      cursor: pointer;
+      font: 700 11px 'DM Mono', monospace;
+      letter-spacing: .11em;
+      transition: .25s ease;
+    }
+    .enter-btn:hover { background: var(--lime); color: #0a0d0b; box-shadow: 0 0 22px rgba(184,236,135,.35); }
+
+    /* site */
+    #site { min-height: 100vh; opacity: 0; transform: translateY(16px); transition: opacity .9s ease .15s, transform .9s ease .15s; }
+    #site.ready { opacity: 1; transform: none; }
+    .wrap { width: min(1220px, calc(100% - 40px)); margin: 0 auto; }
+    .site-header {
+      position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 9, 11, .78); backdrop-filter: blur(18px);
+    }
+    .header-inner { min-height: 74px; display: flex; align-items: center; gap: 26px; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 10px; font: 800 15px 'Orbitron', sans-serif; letter-spacing: -.04em; white-space: nowrap; }
+    .brand-mark { width: 18px; height: 18px; border: 1px solid var(--red); transform: rotate(45deg); position: relative; }
+    .brand-mark::after { content: ''; position: absolute; inset: 4px; border: 1px solid var(--lime); }
+    .brand small { color: var(--muted); font: 10px 'DM Mono', monospace; letter-spacing: .1em; }
+    .nav { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav button { color: #8f9a98; background: transparent; border: 0; padding: 10px 12px; cursor: pointer; white-space: nowrap; font: 500 13px 'IBM Plex Sans KR'; transition: .2s; }
+    .nav button:hover, .nav button.active { color: var(--ink); }
+    .nav button.active { box-shadow: inset 0 -2px var(--red); }
+    .signal-date { display: none; color: var(--muted); font: 10px 'DM Mono'; letter-spacing: .1em; }
+
+    .panel { display: none; animation: panelIn .55s ease both; }
+    .panel.active { display: block; }
+    @keyframes panelIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .eyebrow { margin: 0 0 16px; color: var(--lime); font: 11px 'DM Mono', monospace; letter-spacing: .12em; }
+    .section-title { margin: 0; font: 700 clamp(34px, 5vw, 68px)/1.06 'IBM Plex Sans KR'; letter-spacing: -.07em; }
+    .section-copy { color: #aeb9b6; line-height: 1.85; margin: 20px 0 0; max-width: 58ch; }
+    .hero { position: relative; padding: 102px 0 84px; min-height: 570px; overflow: hidden; }
+    .hero::after {
+      content: '22:00 / 04:30'; position: absolute; z-index: -1;
+      right: -1vw; bottom: 24px; color: rgba(207,223,216,.035);
+      font: 800 clamp(45px, 11vw, 168px)/.8 'Orbitron'; letter-spacing: -.11em;
+    }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(260px, .9fr); align-items: end; gap: 60px; }
+    .warning-card {
+      padding: 21px; border: 1px solid rgba(236,58,67,.42); background: linear-gradient(135deg, rgba(236,58,67,.11), rgba(12,15,16,.5)); box-shadow: var(--shadow); position: relative;
+    }
+    .warning-card::after { content: 'NOTICE // 2026'; position: absolute; right: 12px; top: 11px; color: rgba(255,255,255,.4); font: 10px 'DM Mono'; }
+    .warning-card h3 { margin: 0 0 10px; color: #ff7075; font: 700 14px 'IBM Plex Sans KR'; }
+    .warning-card p { margin: 0; color: #c4ccca; font-size: 13px; line-height: 1.8; }
+    .headline-tag { display: inline-flex; margin-top: 31px; border: 1px solid var(--line); color: var(--muted); padding: 8px 10px; font: 10px 'DM Mono'; letter-spacing: .08em; }
+
+    .lore-content { padding: 0 0 115px; }
+    .rule-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-top: 42px; }
+    .rule { min-height: 230px; padding: 23px; position: relative; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(24,30,30,.83), rgba(11,14,16,.6)); overflow: hidden; }
+    .rule:nth-child(1) { grid-column: span 5; }.rule:nth-child(2) { grid-column: span 7; }.rule:nth-child(3) { grid-column: span 7; }.rule:nth-child(4) { grid-column: span 5; }
+    .rule::before { content: attr(data-no); font: 700 11px 'DM Mono'; color: var(--red); letter-spacing: .1em; }
+    .rule h3 { font-size: 21px; letter-spacing: -.05em; margin: 18px 0 11px; }.rule p { margin: 0; color: #a8b2af; font-size: 14px; line-height: 1.8; }
+    .rule .ghost { position: absolute; right: 13px; bottom: -22px; color: rgba(225,237,231,.035); font: 700 98px 'Orbitron'; letter-spacing: -.16em; }
+    .rule-list { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+    .rule-list li { position: relative; padding-left: 14px; color: #b3bdb9; line-height: 1.65; font-size: 13px; }
+    .rule-list li::before { content: '/'; position: absolute; left: 0; color: var(--lime); }
+    .time-section { padding: 102px 0 118px; border-top: 1px solid var(--line); }
+    .time-grid { display: grid; grid-template-columns: .75fr 1.25fr; gap: 70px; align-items: start; }
+    .clockline { border-left: 1px solid rgba(184,236,135,.37); padding-left: 26px; }
+    .clockline .time-block { padding: 0 0 42px; position: relative; }.clockline .time-block::before { content: ''; width: 9px; height: 9px; background: var(--lime); position: absolute; left: -31px; top: 6px; transform: rotate(45deg); box-shadow: 0 0 14px rgba(184,236,135,.65); }
+    .time-block:last-child::before { background: var(--red); box-shadow: 0 0 14px rgba(236,58,67,.55); }.time-block:last-child { padding-bottom: 0; }
+    .time-block small { color: var(--muted); font: 10px 'DM Mono'; letter-spacing: .11em; }.time-block h3 { margin: 8px 0 6px; font-size: 25px; letter-spacing: -.05em; }.time-block p { margin: 0; color: #aab4b1; line-height: 1.75; font-size: 14px; }
+    .prevention { padding: 25px; background: #d7d3c9; color: #121615; transform: rotate(1.2deg); box-shadow: 13px 15px 0 rgba(0,0,0,.19); }
+    .prevention .paper-top { font: 700 11px 'DM Mono'; letter-spacing: .09em; color: #714147; border-bottom: 1px solid rgba(0,0,0,.2); padding-bottom: 9px; }.prevention h3 { font-size: 28px; margin: 20px 0 14px; letter-spacing: -.07em; }.prevention ol { margin: 0; padding-left: 19px; display: grid; gap: 10px; font-size: 14px; line-height: 1.55; }.prevention li::marker { color: #b31826; font-weight: 700; }
+
+    /* characters */
+    .character-head { padding: 89px 0 30px; border-bottom: 1px solid var(--line); }
+    .character-topline { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }.char-note { color: #929d99; max-width: 36ch; font-size: 13px; line-height: 1.75; }
+    .case-key { margin-top: 35px; display: flex; flex-wrap: wrap; gap: 8px; }.case-key span { padding: 7px 9px; border: 1px solid var(--line); color: #9ea9a5; font: 10px 'DM Mono'; letter-spacing: .08em; }
+    .case-key b { color: var(--red); font-weight: 500; }
+    .board { padding: 40px 0 110px; }
+    .character-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
+    .case-card { position: relative; grid-column: span 3; cursor: pointer; border: 0; padding: 0; color: inherit; background: none; text-align: left; transition: transform .25s ease; }
+    .case-card:nth-child(2), .case-card:nth-child(5) { margin-top: 52px; }.case-card:nth-child(3) { margin-top: 18px; }.case-card:nth-child(7) { margin-top: 34px; }.case-card:hover { transform: translateY(-8px) rotate(.5deg); z-index: 2; }
+    .photo { position: relative; min-height: 318px; overflow: hidden; background: #222; box-shadow: 9px 12px 0 rgba(0,0,0,.25), var(--shadow); }
+    .photo::before { content: ''; position: absolute; inset: 0; background: linear-gradient(125deg, rgba(255,255,255,.13), transparent 27%), repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px); mix-blend-mode: overlay; opacity: .72; z-index: 2; }
+    .photo::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(225,239,234,.16); z-index: 3; }
+    .portrait { position: absolute; inset: 0; overflow: hidden; }
+    .portrait .halo { position: absolute; width: 148px; height: 148px; border-radius: 50%; left: 50%; top: 23px; transform: translateX(-50%); background: rgba(237,241,228,.15); filter: blur(8px); }
+    .portrait .neck { position: absolute; width: 42px; height: 58px; left: calc(50% - 21px); top: 178px; background: var(--skin, #b3a98d); z-index: 2; }
+    .portrait .head { position: absolute; width: 116px; height: 142px; left: calc(50% - 58px); top: 58px; border-radius: 52% 48% 43% 48%; background: var(--skin, #b3a98d); z-index: 2; box-shadow: inset -16px -10px rgba(0,0,0,.12); }
+    .portrait .hair { position: absolute; width: 132px; height: 146px; left: calc(50% - 66px); top: 38px; border-radius: 54% 47% 36% 40%; background: var(--hair, #141618); z-index: 4; }
+    .portrait .hair::after { content: ''; position: absolute; inset: 23px 10px auto 13px; height: 115px; border-radius: 55% 45% 49% 45%; background: var(--skin, #b3a98d); }
+    .portrait .body { position: absolute; width: 230px; height: 165px; left: calc(50% - 115px); bottom: -70px; border-radius: 45% 45% 0 0; background: var(--outfit, #303235); z-index: 1; }
+    .portrait .eye { position: absolute; z-index: 5; width: 17px; height: 8px; top: 119px; border-radius: 50%; background: var(--eye, #2a2c2d); box-shadow: 0 1px 0 rgba(255,255,255,.25); }.portrait .eye.left { left: calc(50% - 37px); }.portrait .eye.right { right: calc(50% - 37px); }
+    .portrait .mask { display: none; position: absolute; z-index: 7; top: 136px; left: calc(50% - 53px); width: 106px; height: 61px; background: #101314; clip-path: polygon(5% 10%, 95% 10%, 88% 86%, 12% 86%); }
+    .portrait .bag { display: none; position: absolute; z-index: 9; left: calc(50% - 65px); top: 34px; width: 130px; height: 164px; background: #876b49; clip-path: polygon(7% 0, 93% 4%, 98% 92%, 76% 100%, 15% 96%, 2% 45%); box-shadow: inset -12px 0 rgba(0,0,0,.17); }.portrait .bag::after { content: ''; position: absolute; width: 54px; height: 19px; left: 38px; top: 64px; border-radius: 46%; background: #050505; box-shadow: 0 27px #050505; }
+    .portrait .smear { position: absolute; z-index: 8; left: 29px; bottom: 20px; width: 72px; height: 6px; opacity: 0; background: rgba(236,58,67,.7); filter: blur(2px); transform: rotate(-5deg); }
+    .portrait .scan-id { position: absolute; z-index: 10; left: 11px; top: 10px; color: rgba(255,255,255,.7); font: 10px 'DM Mono'; letter-spacing: .12em; }
+    .portrait .timestamp { position: absolute; z-index: 10; right: 10px; bottom: 10px; color: rgba(255,255,255,.56); font: 9px 'DM Mono'; letter-spacing: .08em; }
+    .case-card[data-type="female"] .portrait .hair { height: 202px; border-radius: 50% 48% 25% 30%; }.case-card[data-type="short"] .portrait .hair { height: 120px; top: 45px; }.case-card[data-type="mask"] .portrait .mask { display: block; }.case-card[data-type="bag"] .portrait .bag { display: block; }.case-card[data-risk="high"] .portrait .smear { opacity: .74; }
+    .case-card[data-char="한유리"] .portrait::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 47%, rgba(255,255,255,.17) 50%, transparent 53%); z-index: 7; animation: mirrorDelay 2.8s infinite; }
+    @keyframes mirrorDelay { 0%, 69%, 100% { transform: translateX(-100%); opacity: 0; } 70%, 81% { transform: translateX(120%); opacity: .85; } }
+    .tag-strip { position: relative; z-index: 5; margin: -3px 9px 0; padding: 11px 12px 12px; background: var(--paper); color: #141716; transform: rotate(-.7deg); box-shadow: 4px 6px 0 rgba(0,0,0,.23); }
+    .tag-strip .file { display: flex; justify-content: space-between; gap: 10px; color: #5e5550; font: 9px 'DM Mono'; letter-spacing: .08em; }.tag-strip h3 { margin: 8px 0 4px; font-size: 20px; letter-spacing: -.07em; }.tag-strip p { margin: 0; color: #4a504d; font-size: 11px; line-height: 1.45; }
+    .case-card:nth-child(3n) .tag-strip { transform: rotate(1deg); }.case-card:nth-child(4n) .tag-strip { background: #c9d0c7; }
+
+    .detail { position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 20px; background: rgba(0,0,0,.72); backdrop-filter: blur(7px); }.detail.open { display: grid; }
+    .detail-box { width: min(770px, 100%); max-height: min(730px, calc(100vh - 40px)); overflow: auto; position: relative; padding: clamp(25px, 5vw, 55px); border: 1px solid rgba(207,222,216,.27); background: linear-gradient(155deg, #171d1d, #0b0e10); box-shadow: 0 32px 90px rgba(0,0,0,.7); animation: modalIn .35s ease; }.detail-box::before { content: 'CASE FILE / RESTRICTED'; position: absolute; right: 23px; top: 20px; color: rgba(236,58,67,.75); font: 10px 'DM Mono'; letter-spacing: .08em; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+    .detail-close { position: absolute; top: 16px; left: 19px; border: 0; background: transparent; color: var(--ink); cursor: pointer; font: 17px 'DM Mono'; }.detail-kicker { color: var(--lime); margin: 18px 0 10px; font: 10px 'DM Mono'; letter-spacing: .1em; }.detail-box h2 { margin: 0; font-size: clamp(33px, 6vw, 58px); letter-spacing: -.08em; }.detail-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 19px 0 27px; }.detail-meta span { color: #aeb8b4; border: 1px solid var(--line); padding: 7px 9px; font: 11px 'DM Mono'; }.detail-grid { display: grid; grid-template-columns: 110px 1fr; border-top: 1px solid var(--line); }.detail-grid dt, .detail-grid dd { padding: 16px 0; border-bottom: 1px solid var(--line); margin: 0; }.detail-grid dt { color: var(--muted); font: 10px 'DM Mono'; letter-spacing: .08em; }.detail-grid dd { color: #d1dad7; line-height: 1.8; font-size: 14px; }
+
+    footer { border-top: 1px solid var(--line); padding: 25px 0; color: #697471; font: 10px 'DM Mono'; letter-spacing: .08em; }.footer-line { display: flex; justify-content: space-between; gap: 20px; }
+
+    @media (min-width: 880px) { .signal-date { display: block; } }
+    @media (max-width: 850px) {
+      .hero-grid, .time-grid { grid-template-columns: 1fr; gap: 38px; }.warning-card { max-width: 490px; }.rule:nth-child(n) { grid-column: span 6; }.case-card { grid-column: span 4; }.case-card:nth-child(2), .case-card:nth-child(5), .case-card:nth-child(7) { margin-top: 0; }.case-card:nth-child(3) { margin-top: 37px; }.case-card:nth-child(5) { margin-top: 37px; }.character-topline { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 600px) {
+      .wrap { width: min(100% - 26px, 1220px); }.site-header .wrap { width: 100%; padding: 0 13px; }.header-inner { gap: 8px; min-height: 64px; }.brand small { display: none; }.brand { font-size: 13px; }.nav { gap: 0; }.nav button { padding: 10px 8px; font-size: 12px; }.hero { padding: 73px 0 67px; min-height: auto; }.rule-grid { grid-template-columns: 1fr; }.rule:nth-child(n) { grid-column: auto; min-height: auto; }.time-section { padding: 72px 0 82px; }.character-head { padding: 70px 0 25px; }.character-grid { grid-template-columns: repeat(2, 1fr); gap: 14px 12px; }.case-card { grid-column: auto; }.case-card:nth-child(3), .case-card:nth-child(5) { margin-top: 0; }.case-card:nth-child(even) { margin-top: 36px; }.photo { min-height: 255px; }.portrait .body { transform: scale(.88); transform-origin: bottom; }.portrait .head { transform: scale(.88); transform-origin: top; }.portrait .hair { transform: scale(.88); transform-origin: top; }.portrait .eye { transform: scale(.88); transform-origin: top; }.tag-strip h3 { font-size: 17px; }.tag-strip p { font-size: 10px; }.broadcast h1 { font-size: clamp(38px, 12vw, 62px); }.broadcast-main { max-width: 100%; }.ticker { margin: 16px 0 25px; }.broadcast-copy { font-size: 13px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
+
+
+    .broadcast {
+      background: #000;
+      isolation: isolate;
+      display: grid;
+      place-items: center;
+    }
+    .broadcast::before {
+      inset: 0;
+      opacity: .75;
+      background:
+        radial-gradient(ellipse at center, rgba(36,46,44,.18), transparent 38%),
+        radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,.91) 87%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px);
+      animation: broadcastStatic 1.4s steps(2) infinite;
+    }
+    .broadcast::after {
+      background:
+        linear-gradient(90deg, rgba(82,218,190,.05), transparent 22%, transparent 76%, rgba(238,56,73,.06)),
+        repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.32) 2px 4px);
+      background-size: 100% 100%, 100% 4px;
+      opacity: .86;
+      mix-blend-mode: screen;
+    }
+    @keyframes broadcastStatic { 0%, 100% { transform: translate(0,0); filter: contrast(1); } 20% { transform: translate(0,-1px); } 58% { transform: translate(1px,1px); filter: contrast(1.1); } }
+    .broadcast-machine { width: min(980px, 92vw); position: relative; z-index: 2; }
+    .receiver-label { display:flex; justify-content:space-between; gap:14px; padding: 0 5px 11px; color:#a8b4ad; font: 10px 'DM Mono',monospace; letter-spacing:.13em; }
+    .live-dot { color:#f0656a; animation: livePulse .9s steps(2) infinite; }
+    .crt-cabinet { position:relative; display:grid; grid-template-columns: 1fr 70px; padding: 18px; border: 1px solid rgba(211,231,223,.26); border-radius: 13px; background: linear-gradient(135deg,#202827,#0d1010 60%,#161a1a); box-shadow: 0 0 0 3px rgba(255,255,255,.025), 0 40px 100px rgba(0,0,0,.78), inset 0 0 28px rgba(255,255,255,.035); }
+    .crt-cabinet::before { content:''; position:absolute; inset:7px; border:1px solid rgba(255,255,255,.06); border-radius:9px; pointer-events:none; }
+    .crt-screen { position:relative; min-height: 468px; overflow:hidden; border: 8px solid #060707; border-radius: 22px; background: #06100e; box-shadow: inset 0 0 60px #000, 0 0 30px rgba(141,227,198,.12); }
+    .screen-snow { position:absolute; inset:-35%; opacity:.19; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='x'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23x)'/%3E%3C/svg%3E"); animation: snowShift .16s steps(2) infinite; mix-blend-mode:screen; }
+    .screen-scanline { position:absolute; inset:0; background: repeating-linear-gradient(0deg, rgba(0,0,0,.45) 0 1px, transparent 1px 4px); pointer-events:none; z-index:4; }
+    @keyframes snowShift { to { transform: translate(3%, -2%); } }
+    .screen-header,.screen-footer { position:absolute; z-index:5; left:0; right:0; display:flex; justify-content:space-between; gap:16px; padding:10px 14px; color:#c3d8cd; background:rgba(0,0,0,.42); font: 10px 'DM Mono',monospace; letter-spacing:.1em; }
+    .screen-header { top:0; border-bottom:1px solid rgba(204,229,215,.13); }.screen-header span:first-child { color:#fff; background:#cb303b; padding:3px 5px; }.screen-footer { bottom:0; color:#95a8a0; border-top:1px solid rgba(204,229,215,.13); }
+    .screen-body { position:relative; z-index:3; min-height:468px; display:flex; flex-direction:column; justify-content:center; padding: 60px clamp(22px,6vw,68px) 56px; }
+    .signal-code { margin:0 0 15px; color:#a6dcaa; font:10px 'DM Mono',monospace; letter-spacing:.14em; }
+    .screen-body h1 { margin:0; color:#e4f1e9; font:800 clamp(60px,10vw,126px)/.86 'IBM Plex Sans KR',sans-serif; letter-spacing:-.14em; text-shadow: 4px 0 rgba(240,50,70,.66), -3px 0 rgba(84,225,203,.55); }
+    .screen-body h1 .glitch::before { color:#73d9d0; }.screen-body h1 .glitch::after { color:#ef525d; }
+    .alert-title { margin:17px 0 28px; color:#d7ddd9; font-size:clamp(15px,2vw,22px); letter-spacing:-.04em; }
+    .anchor-line { display:flex; align-items:center; gap:14px; color:#9caeaa; font:10px 'DM Mono',monospace; letter-spacing:.09em; }
+    .anchor-tag { padding:6px 7px; border:1px solid rgba(184,236,135,.33); color:#b8ec87; white-space:nowrap; }
+    .audio-bars { height:17px; flex:1; display:flex; align-items:center; gap:3px; overflow:hidden; }.audio-bars i { width:2px; height:calc(20% + (var(--x,1) * 8%)); background:#b8ec87; animation: talk .55s ease-in-out infinite alternate; }.audio-bars i:nth-child(2n){height:85%;animation-delay:-.21s}.audio-bars i:nth-child(3n){height:34%;animation-delay:-.44s}.audio-bars i:nth-child(5n){height:70%;animation-delay:-.13s}@keyframes talk { to { transform:scaleY(.22); opacity:.45; } }
+    .news-transcript { min-height:4.8em; max-width:58ch; margin:18px 0 0; padding:14px 16px; color:#d3ddd7; border-left:2px solid #ef4753; background:rgba(0,0,0,.37); font-size:clamp(13px,1.6vw,16px); line-height:1.76; text-shadow:0 0 11px rgba(198,241,217,.17); }
+    .news-transcript.glitching { animation: transcriptGlitch .24s steps(2); } @keyframes transcriptGlitch { 40% { transform:translateX(-3px); color:#ff9c9c; } 70% { transform:translateX(2px); clip-path:inset(19% 0 33% 0); } }
+    .tv-side { display:flex; flex-direction:column; align-items:center; gap:13px; padding:14px 0 0 11px; }.tuner { color:#afbdb7; text-align:center; font:9px/1.2 'DM Mono'; letter-spacing:.08em; padding:6px 4px; border:1px solid rgba(255,255,255,.16); }.knob { width:29px; height:29px; border-radius:50%; border:4px double #4a5450; background:conic-gradient(#9ba59e, #242b28, #9ba59e); box-shadow: inset 0 0 5px #000; }.knob.small{width:20px;height:20px;}.speaker-grille{height:120px;width:29px;background:repeating-linear-gradient(90deg,#0b0c0c 0 2px,#39413e 2px 3px);opacity:.7;}
+    .radio-console { display:grid; grid-template-columns:auto 1fr auto; gap:13px; align-items:center; margin:13px 10px 0; color:#96a39e; font:10px 'DM Mono',monospace; letter-spacing:.12em; }.radio-wave { display:flex; align-items:center; gap:2px; height:18px; overflow:hidden; }.radio-wave i { width:2px; height:30%; background:#d84f57; animation: radioWave .75s ease-in-out infinite alternate; }.radio-wave i:nth-child(2n){height:90%;animation-delay:-.3s}.radio-wave i:nth-child(3n){height:45%;animation-delay:-.5s}@keyframes radioWave {to{transform:scaleY(.3);opacity:.35}}
+    .broadcast-machine .enter-btn { display:block; margin:30px auto 0; }
+
+    .photo > img { position:absolute; z-index:1; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; filter:none; transition:opacity .3s ease; }
+    .photo.has-real-image > img { opacity:1; }.photo.has-real-image .portrait { opacity:.19; mix-blend-mode:screen; }
+    .case-card:hover .photo.has-real-image > img { filter:none; }
+
+    .detail-box { width:min(1000px, 100%); padding:clamp(26px,4vw,46px); }
+    .detail-layout { display:grid; grid-template-columns:minmax(210px,.75fr) minmax(0,1.25fr); gap:clamp(22px,4vw,44px); align-items:start; margin-top:19px; }
+    .detail-photo { position:sticky; top:0; min-height:408px; overflow:hidden; border:1px solid rgba(217,233,226,.2); background:linear-gradient(145deg,#293431,#101414); box-shadow:9px 11px 0 rgba(0,0,0,.22); }
+    .detail-photo::after { content:''; position:absolute; inset:0; pointer-events:none; background:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 4px),linear-gradient(125deg,rgba(255,255,255,.16),transparent 35%); mix-blend-mode:overlay; }
+    .detail-photo img { display:none; position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:none; }
+    .detail-photo.has-real-image img { display:block; }.detail-photo.has-real-image .detail-photo-fallback { display:none; }
+    .detail-photo-fallback { position:absolute; inset:0; display:grid; place-items:center; color:#a4b1ab; background:radial-gradient(circle at 50% 32%,rgba(216,236,223,.19),transparent 22%),linear-gradient(145deg,#202a28,#0a0d0d); font:11px/1.6 'DM Mono',monospace; text-align:center; letter-spacing:.12em; }
+    .detail-stamp { position:absolute; z-index:3; left:11px; bottom:10px; color:rgba(255,255,255,.74); font:9px/1.45 'DM Mono',monospace; letter-spacing:.09em; }
+    .detail-info h2 { margin:0; font-size:clamp(38px,5vw,62px); letter-spacing:-.09em; }.detail-info .detail-meta { margin:19px 0 27px; }.detail-info .detail-grid { grid-template-columns:96px 1fr; }
+
+
+    /* ambient BGM control */
+    .audio-control {
+      position: fixed;
+      z-index: 140;
+      right: 20px;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 11px;
+      border: 1px solid rgba(184,236,135,.34);
+      background: rgba(4,7,8,.74);
+      box-shadow: 0 10px 34px rgba(0,0,0,.36);
+      backdrop-filter: blur(14px);
+      color: #b7c5bf;
+      font: 10px 'DM Mono', monospace;
+      letter-spacing: .09em;
+      transition: border-color .25s ease, background .25s ease;
+    }
+    .audio-control.playing { border-color: rgba(184,236,135,.7); background: rgba(10,18,15,.84); }
+    .audio-control button {
+      min-width: 34px;
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+      color: var(--lime);
+      background: transparent;
+      font: 700 10px 'DM Mono', monospace;
+      letter-spacing: .05em;
+    }
+    .audio-control button:hover { color: #f0ffd9; }
+    .audio-control input[type='range'] {
+      width: 86px;
+      accent-color: var(--lime);
+      cursor: pointer;
+    }
+    @media(max-width:700px){
+      .audio-control { right: 12px; bottom: 12px; gap: 7px; padding: 8px 9px; }
+      .audio-control input[type='range'] { width: 72px; }
+    }
+
+    @media(max-width:700px){ .receiver-label{font-size:8px}.crt-cabinet{grid-template-columns:1fr 42px;padding:11px}.crt-screen{min-height:430px;border-width:5px;border-radius:16px}.screen-body{min-height:430px;padding:56px 23px 48px}.screen-footer,.screen-header{font-size:8px;padding:8px 9px}.screen-footer span:first-child{max-width:65%}.tv-side{padding-left:5px}.speaker-grille{width:18px}.detail-layout{grid-template-columns:1fr}.detail-photo{position:relative;min-height:280px;max-height:380px}.detail-info .detail-grid{grid-template-columns:76px 1fr}.radio-console{margin-inline:3px;font-size:8px} }
+
+  
+    .character-quote {
+      margin: 26px 0 0;
+      padding: 15px 0 1px 16px;
+      border-left: 2px solid var(--red);
+      color: #efe5d3;
+      font-size: 16px;
+      font-style: italic;
+      line-height: 1.8;
+    }
+
+
+    /* spoiler classification */
+    .spoiler-control { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .spoiler-trigger { border:1px solid rgba(236,58,67,.55); padding:11px 13px; color:#f0dad6; background:rgba(69,17,21,.24); cursor:pointer; font:700 10px 'DM Mono',monospace; letter-spacing:.09em; transition:background .2s ease, border-color .2s ease, color .2s ease; }
+    .spoiler-trigger:hover { color:#fff; border-color:#ef646d; background:rgba(104,24,30,.5); }
+    .spoiler-state { color:#b7c8bf; font:10px 'DM Mono',monospace; letter-spacing:.08em; }
+    .spoiler-label { display:none; position:absolute; z-index:20; left:11px; bottom:11px; padding:7px 8px; border:1px solid; font:700 9px 'DM Mono',monospace; letter-spacing:.09em; box-shadow:0 4px 14px rgba(0,0,0,.38); }
+    body.spoilers-revealed .spoiler-label { display:block; }
+    .spoiler-label.human { color:#dff9c5; border-color:rgba(184,236,135,.82); background:rgba(21,54,31,.87); }
+    .spoiler-label.doppelganger { color:#ffd6d6; border-color:rgba(236,58,67,.88); background:rgba(74,14,20,.89); }
+    .detail-meta .spoiler-meta { display:none; }
+    body.spoilers-revealed .detail-meta .spoiler-meta { display:inline-block; }
+    .detail-meta .spoiler-meta.human { color:#dff9c5; border-color:rgba(184,236,135,.72); background:rgba(24,57,34,.45); }
+    .detail-meta .spoiler-meta.doppelganger { color:#ffd6d6; border-color:rgba(236,58,67,.76); background:rgba(75,16,21,.42); }
+
+    .spoiler-modal { position:fixed; inset:0; z-index:70; display:none; place-items:center; padding:20px; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); }
+    .spoiler-modal.open { display:grid; }
+    .spoiler-box { width:min(500px,100%); position:relative; padding:34px clamp(25px,5vw,48px) 31px; border:1px solid rgba(236,58,67,.4); background:linear-gradient(150deg,#231719,#0d0d0e 70%); box-shadow:0 30px 90px rgba(0,0,0,.7); animation:modalIn .28s ease; }
+    .spoiler-box::before { content:'SPOILER NOTICE'; position:absolute; right:21px; top:17px; color:rgba(236,58,67,.86); font:10px 'DM Mono',monospace; letter-spacing:.09em; }
+    .spoiler-box .spoiler-kicker { margin:11px 0 12px; color:var(--red); font:10px 'DM Mono',monospace; letter-spacing:.1em; }
+    .spoiler-box h2 { max-width:12ch; margin:0; color:#f2eee7; font-size:clamp(27px,5vw,40px); letter-spacing:-.07em; line-height:1.15; }
+    .spoiler-box p:not(.spoiler-kicker) { margin:18px 0 0; color:#aab3af; font-size:14px; line-height:1.75; }
+    .spoiler-actions { display:flex; gap:9px; margin-top:27px; }
+    .spoiler-actions button { min-width:94px; border:1px solid var(--line); padding:11px 15px; cursor:pointer; font:700 10px 'DM Mono',monospace; letter-spacing:.1em; }
+    .spoiler-yes { color:#ffd9d9; border-color:rgba(236,58,67,.72) !important; background:rgba(122,25,32,.48); }
+    .spoiler-yes:hover { background:rgba(163,33,42,.68); }
+    .spoiler-no { color:#c2ccc7; background:rgba(255,255,255,.025); }
+    .spoiler-no:hover { color:#fff; background:rgba(255,255,255,.08); }
+    .spoiler-close { position:absolute; top:13px; left:16px; border:0; padding:5px; color:#b7c1bc; background:transparent; cursor:pointer; font:17px 'DM Mono',monospace; }
+    @media(max-width:850px) { .spoiler-control { margin-top:4px; } }
+
+
+    /* revealed identity effects */
+    body.spoilers-revealed .case-card.confirmed-doppelganger .photo {
+      overflow: visible;
+      isolation: isolate;
+      box-shadow: 9px 12px 0 rgba(0,0,0,.25), 0 0 0 2px rgba(180,19,29,.7), 0 0 31px rgba(197,22,34,.38);
+      animation: doppelPulse 2.7s ease-in-out infinite;
+    }
+    body.spoilers-revealed .case-card.confirmed-doppelganger .photo::after {
+      border: 2px solid rgba(242,57,67,.9);
+      box-shadow: inset 0 0 38px rgba(176,0,17,.42), 0 0 16px rgba(230,26,40,.56);
+    }
+    body.spoilers-revealed .case-card.confirmed-doppelganger .photo::before {
+      opacity: .92;
+      background:
+        linear-gradient(130deg, transparent 0 42%, rgba(255,51,56,.27) 49%, transparent 54%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 4px);
+    }
+    body.spoilers-revealed .case-card.confirmed-doppelganger .photo .portrait::before {
+      content:'';
+      position:absolute;
+      z-index:13;
+      width:128px;
+      height:83px;
+      right:-18px;
+      top:-22px;
+      pointer-events:none;
+      opacity:.95;
+      background:
+        radial-gradient(ellipse at 48% 46%, rgba(203,14,27,.98) 0 7%, transparent 8%),
+        radial-gradient(ellipse at 73% 23%, rgba(193,18,31,.94) 0 5%, transparent 6%),
+        radial-gradient(ellipse at 88% 52%, rgba(191,12,25,.9) 0 3%, transparent 4%),
+        radial-gradient(ellipse at 18% 19%, rgba(216,28,38,.85) 0 3%, transparent 4%),
+        radial-gradient(ellipse at 36% 80%, rgba(221,33,44,.78) 0 4%, transparent 5%),
+        linear-gradient(112deg, transparent 42%, rgba(165,0,15,.66) 43% 47%, transparent 49%);
+      filter: drop-shadow(0 0 4px rgba(255,0,0,.35));
+      transform: rotate(-8deg);
+    }
+    body.spoilers-revealed .case-card.confirmed-doppelganger .photo .portrait::after {
+      content:'';
+      position:absolute;
+      z-index:12;
+      top:0;
+      right:22px;
+      width:12px;
+      height:83px;
+      border-radius:0 0 70% 70%;
+      background:linear-gradient(#c51426 0 65%, rgba(114,0,10,.15) 100%);
+      box-shadow:25px 20px 0 -4px rgba(173,7,20,.78), 46px 7px 0 -6px rgba(202,21,31,.74);
+      filter:drop-shadow(0 3px 2px rgba(0,0,0,.35));
+      animation: bloodDrip 3.1s ease-in-out infinite;
+    }
+    body.spoilers-revealed .case-card.confirmed-human .photo {
+      overflow: visible;
+      box-shadow: 9px 12px 0 rgba(0,0,0,.25), 0 0 0 2px rgba(113,238,206,.64), 0 0 29px rgba(64,217,191,.27);
+    }
+    body.spoilers-revealed .case-card.confirmed-human .photo::after {
+      border:2px solid rgba(118,239,209,.88);
+      box-shadow:inset 0 0 28px rgba(59,210,183,.22), 0 0 14px rgba(92,235,203,.34);
+    }
+    body.spoilers-revealed .case-card.confirmed-human .photo::before {
+      opacity:.9;
+      background:
+        linear-gradient(120deg, transparent 0 30%, rgba(104,243,209,.23) 44%, transparent 56%),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 4px);
+    }
+    body.spoilers-revealed .case-card.confirmed-human .photo .portrait::before {
+      content:'IDENTITY VERIFIED';
+      position:absolute;
+      z-index:13;
+      left:-11px;
+      top:22px;
+      padding:7px 11px 7px 15px;
+      color:#0e2725;
+      background:#8bf0d2;
+      border:1px solid #d8fff4;
+      box-shadow:4px 4px 0 rgba(8,63,54,.6), 0 0 18px rgba(100,244,213,.52);
+      font:900 8px 'DM Mono',monospace;
+      letter-spacing:.14em;
+      transform:rotate(-5deg);
+    }
+    body.spoilers-revealed .case-card.confirmed-human .photo .portrait::after {
+      content:'';
+      position:absolute;
+      z-index:12;
+      left:11px;
+      bottom:12px;
+      width:38px;
+      height:38px;
+      border:2px solid rgba(134,245,215,.94);
+      border-radius:50%;
+      box-shadow:inset 0 0 0 7px rgba(22,90,79,.34),0 0 17px rgba(113,245,211,.7);
+      background:linear-gradient(45deg, transparent 46%, rgba(136,245,217,.88) 47% 53%, transparent 54%),linear-gradient(-45deg, transparent 46%, rgba(136,245,217,.88) 47% 53%, transparent 54%);
+    }
+    .spoiler-label {
+      display:none;
+      align-items:center;
+      gap:7px;
+      left:10px;
+      bottom:10px;
+      min-height:28px;
+      padding:7px 10px;
+      overflow:visible;
+      text-shadow:0 1px 0 rgba(0,0,0,.4);
+    }
+    body.spoilers-revealed .spoiler-label { display:flex; }
+    .spoiler-label .identity-icon { width:8px; height:8px; flex:0 0 auto; border-radius:50%; background:currentColor; box-shadow:0 0 9px currentColor; }
+    .spoiler-label strong { font:900 9px 'DM Mono',monospace; letter-spacing:.11em; }
+    .spoiler-label.human {
+      color:#d3fff1;
+      border-color:#76efd1;
+      background:linear-gradient(90deg,rgba(12,80,68,.96),rgba(15,43,40,.91));
+      box-shadow:4px 4px 0 rgba(2,22,20,.8),0 0 18px rgba(96,237,207,.44);
+      transform:rotate(-1.6deg);
+    }
+    .spoiler-label.human::before {
+      content:'✓';
+      position:absolute;
+      left:-14px;
+      top:-12px;
+      width:25px;
+      height:25px;
+      display:grid;
+      place-items:center;
+      color:#102f2b;
+      background:#84efd1;
+      border:1px solid #dcfff6;
+      border-radius:50%;
+      box-shadow:0 0 13px rgba(126,240,208,.85);
+      font:900 15px Arial,sans-serif;
+    }
+    .spoiler-label.doppelganger {
+      color:#ffe1df;
+      border-color:#ff5661;
+      background:linear-gradient(90deg,rgba(124,7,17,.97),rgba(59,6,11,.94));
+      box-shadow:4px 4px 0 rgba(28,0,4,.86),0 0 19px rgba(241,31,48,.48);
+      transform:rotate(1.25deg);
+      animation: labelGlitch 2.25s steps(2,end) infinite;
+    }
+    .spoiler-label.doppelganger::before {
+      content:'';
+      position:absolute;
+      left:17px;
+      top:-22px;
+      width:8px;
+      height:29px;
+      border-radius:0 0 70% 70%;
+      background:#ce1728;
+      box-shadow:12px 11px 0 -2px #b70d20,27px 5px 0 -4px #eb3543,-6px 14px 0 -4px #ed2d3a;
+      filter:drop-shadow(0 2px 1px rgba(0,0,0,.35));
+    }
+    .spoiler-label.doppelganger::after {
+      content:'';
+      position:absolute;
+      inset:-3px;
+      border:1px solid rgba(255,123,128,.55);
+      transform:translate(3px,-2px);
+      pointer-events:none;
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="doppelganger"] {
+      border-color:rgba(243,43,57,.9);
+      background:linear-gradient(155deg,#241014,#0d0a0b 70%);
+      box-shadow:0 32px 90px rgba(0,0,0,.7),0 0 48px rgba(224,21,38,.18);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="doppelganger"]::after {
+      content:'';
+      position:absolute;
+      z-index:2;
+      top:-22px;
+      right:86px;
+      width:99px;
+      height:89px;
+      pointer-events:none;
+      background:
+        radial-gradient(circle at 40% 48%,#e32735 0 7%,transparent 8%),
+        radial-gradient(circle at 73% 20%,#bc1120 0 5%,transparent 6%),
+        radial-gradient(circle at 88% 60%,#d11a2a 0 3%,transparent 4%),
+        linear-gradient(100deg,transparent 40%,rgba(194,12,25,.8) 42% 48%,transparent 51%);
+      filter:drop-shadow(0 0 5px rgba(255,16,34,.35));
+      transform:rotate(14deg);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="doppelganger"] .detail-photo {
+      border-color:rgba(248,58,70,.9);
+      box-shadow:0 0 0 2px rgba(178,9,24,.52),0 0 38px rgba(212,16,32,.32);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="doppelganger"] .detail-photo::before {
+      content:'DOPPELGÄNGER CONFIRMED';
+      position:absolute;
+      z-index:5;
+      top:19px;
+      left:-9px;
+      padding:8px 12px;
+      color:#ffe1df;
+      border:1px solid #ff6971;
+      background:rgba(116,7,16,.94);
+      box-shadow:4px 4px 0 rgba(42,0,4,.85),0 0 19px rgba(230,25,42,.56);
+      font:900 9px 'DM Mono',monospace;
+      letter-spacing:.12em;
+      transform:rotate(-4deg);
+      animation: labelGlitch 2.05s steps(2,end) infinite;
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="doppelganger"] .detail-photo::after {
+      background:
+        radial-gradient(circle at 88% 10%,rgba(231,31,46,.93) 0 3%,transparent 4%),
+        radial-gradient(circle at 74% 19%,rgba(215,17,31,.82) 0 5%,transparent 6%),
+        linear-gradient(106deg,transparent 0 72%,rgba(221,26,40,.28) 77%,transparent 82%),
+        repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 4px);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="human"] {
+      border-color:rgba(101,239,208,.72);
+      background:linear-gradient(155deg,#102220,#0b1010 70%);
+      box-shadow:0 32px 90px rgba(0,0,0,.7),0 0 44px rgba(59,214,184,.15);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="human"] .detail-photo {
+      border-color:rgba(122,240,213,.92);
+      box-shadow:0 0 0 2px rgba(78,215,185,.48),0 0 34px rgba(69,221,190,.28);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="human"] .detail-photo::before {
+      content:'IDENTITY VERIFIED';
+      position:absolute;
+      z-index:5;
+      top:19px;
+      left:-9px;
+      padding:8px 12px;
+      color:#10342f;
+      border:1px solid #effff9;
+      background:#80f0d1;
+      box-shadow:4px 4px 0 rgba(8,55,47,.78),0 0 18px rgba(100,244,213,.55);
+      font:900 9px 'DM Mono',monospace;
+      letter-spacing:.12em;
+      transform:rotate(-4deg);
+    }
+    body.spoilers-revealed .detail-box[data-confirmed="human"] .detail-photo::after {
+      background:
+        linear-gradient(120deg,rgba(115,239,210,.22),transparent 31%),
+        repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 4px);
+    }
+    .detail-meta .spoiler-meta.human {
+      color:#d6fff3;
+      border-color:rgba(118,239,209,.94);
+      background:rgba(13,88,73,.52);
+      box-shadow:0 0 13px rgba(91,235,205,.22);
+    }
+    .detail-meta .spoiler-meta.doppelganger {
+      color:#ffe0df;
+      border-color:rgba(255,80,92,.96);
+      background:rgba(106,6,15,.61);
+      box-shadow:0 0 14px rgba(240,27,43,.25);
+    }
+    @keyframes doppelPulse { 0%,100% { transform:translate(0,0); } 48% { transform:translate(.8px,-.4px); } 50% { transform:translate(-1.5px,.8px); } 52% { transform:translate(0,0); } }
+    @keyframes bloodDrip { 0%,100% { transform:translateY(0); } 50% { transform:translateY(5px); } }
+    @keyframes labelGlitch { 0%,88%,100% { clip-path:inset(0); } 89% { clip-path:inset(36% 0 43% 0); transform:translate(-2px,1px) rotate(1.25deg); } 91% { clip-path:inset(7% 0 64% 0); transform:translate(2px,-1px) rotate(1.25deg); } }
+    @media(max-width:700px) {
+      body.spoilers-revealed .case-card.confirmed-human .photo .portrait::before { font-size:7px; padding:6px 8px 6px 12px; }
+      .spoiler-label { max-width:calc(100% - 18px); padding:6px 7px; }
+      .spoiler-label strong { font-size:8px; letter-spacing:.07em; }
+      body.spoilers-revealed .detail-box[data-confirmed="doppelganger"]::after { right:46px; }
+    }
+  </style>
+</head>
+<body>
+  <audio id="bgmAudio" preload="auto" loop playsinline aria-hidden="true"></audio>
+  <aside class="audio-control" id="audioControl" aria-label="배경음 조절">
+    <button type="button" id="soundToggle" aria-label="배경음 켜기">SOUND</button>
+    <input type="range" id="volumeSlider" min="0" max="100" value="23" step="1" aria-label="배경음 볼륨" />
+  </aside>
+  <section class="broadcast" id="broadcast" aria-label="긴급 뉴스 인트로">
+    <div class="broadcast-machine">
+      <div class="receiver-label"><span>KBX 11 · EMERGENCY TELEVISION</span><span class="live-dot">● ON AIR / SIGNAL UNSTABLE</span></div>
+      <div class="crt-cabinet">
+        <div class="crt-screen">
+          <div class="screen-snow" aria-hidden="true"></div>
+          <div class="screen-scanline" aria-hidden="true"></div>
+          <div class="screen-header"><span>긴급 재난 속보</span><span>2026.10.31 / 22:00</span></div>
+          <div class="screen-body">
+            <p class="signal-code">SEOUL LOCAL FEED // CHANNEL 11</p>
+            <h1><span class="glitch" data-text="도플갱어">도플갱어</span></h1>
+            <p class="alert-title">문 앞의 사람을 믿지 마십시오.</p>
+            <div class="anchor-line"><span class="anchor-tag">ANCHOR / KIM HYEON-JU</span><span class="audio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+            <p class="news-transcript" id="newsTranscript" aria-live="polite">“경찰청은 오늘 밤, 정체를 확인할 수 없는 방문객에게 문을 열지 말 것을 당부했습니다…”</p>
+          </div>
+          <div class="screen-footer"><span>⚠ 화면 속 인물의 신원을 믿지 마십시오</span><span>CH-11 / ROK</span></div>
+        </div>
+        <div class="tv-side" aria-hidden="true"><span class="tuner">CH<br>11</span><span class="knob"></span><span class="knob small"></span><div class="speaker-grille"></div></div>
+      </div>
+      <div class="radio-console">
+        <span>RADIO RELAY</span><div class="radio-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span id="broadcastClock">00:00:00</span>
+      </div>
+      <button class="enter-btn" id="enterSite">[ SIGNAL LOST ] 기록 보관소 입장</button>
+    </div>
+  </section>
+
+  <main id="site">
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="#world" aria-label="도플갱어 홈"><span class="brand-mark"></span><span>도플갱어 <small>DOPPELGANGER / ARCHIVE</small></span></a>
+        <nav class="nav" aria-label="사이트 메뉴">
+          <button class="active" data-tab="world">세계관</button>
+          <button data-tab="threshold">문턱 시간</button>
+          <button data-tab="records">판별 기록</button>
+          <button data-tab="characters">등장인물</button>
+        </nav>
+        <span class="signal-date">2026 / ROK / ARCHIVE 11</span>
+      </div>
+    </header>
+
+    <section id="world" class="panel active" aria-labelledby="world-title">
+      <div class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <p class="eyebrow">WORLD FILE / 2026</p>
+            <h1 class="section-title" id="world-title">누군가 문 앞에 있다.<br>그 사람이 <em style="font-style:normal;color:var(--red)">사람</em>일까?</h1>
+            <p class="section-copy">도시 전체에 정체불명의 존재가 퍼졌다. 밤이 되면 인간과 완전히 같은 얼굴, 목소리, 기억의 일부를 가진 ‘도플갱어’가 문 앞에 선다. 그들이 원하는 것은 단 하나. <b style="color:#d7e6d1">당신의 명확한 허락</b>이다.</p>
+            <span class="headline-tag">THE HOUSE DOESN'T FORGET WHO YOU LET IN.</span>
+          </div>
+          <aside class="warning-card">
+            <h3>오늘 밤의 기본 수칙</h3>
+            <p>외형 하나만으로 판단하지 마십시오. 진짜 인간도 두려움과 부상으로 이상해 보일 수 있습니다. 반대로, 도플갱어는 가장 익숙한 얼굴로 가장 그럴듯한 부탁을 합니다.</p>
+          </aside>
+        </div>
+      </div>
+      <div class="wrap lore-content">
+        <p class="eyebrow">CORE FILES</p>
+        <div class="rule-grid">
+          <article class="rule" data-no="01 / WHAT APPEARS">
+            <span class="ghost">01</span>
+            <h3>모방하는 존재</h3>
+            <p>도플갱어는 특정 인물의 외모·목소리·말투와 기억 일부를 재현한다. 하지만 감정의 결, 바로 어제의 변화, 관계 속의 사소한 맥락은 끝까지 완전하지 않다.</p>
+          </article>
+          <article class="rule" data-no="02 / THE INVITATION">
+            <span class="ghost">02</span>
+            <h3>문턱 너머의 규칙</h3>
+            <p>대화나 문틈 확인은 초대가 아니다. 그러나 집주인의 <b style="color:var(--lime)">명확한 허락</b>이 주어지면, 그들은 문턱 시간 안에 집 안으로 들어와 정착할 수 있다.</p>
+          </article>
+          <article class="rule" data-no="03 / WRONG CHOICE">
+            <span class="ghost">03</span>
+            <h3>둘 다 위험하다</h3>
+            <p>진짜 사람을 돌려보내면 밤거리의 위험에 노출된다. 도플갱어를 들이면 집 안의 인간 거주자에게 도플갱어화가 시작된다. 단서가 적을수록 선택은 더 잔인해진다.</p>
+          </article>
+          <article class="rule" data-no="04 / DO NOT ASSUME">
+            <span class="ghost">04</span>
+            <h3>확신은 천천히</h3>
+            <p>한 가지 이상 징후는 증거가 아니다. 피로, 질병, 공포, 조명, 거짓말도 사람을 낯설게 만든다. 외형·대화·행동을 함께 보아야 한다.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="threshold" class="panel" aria-labelledby="threshold-title">
+      <div class="wrap time-section">
+        <div class="time-grid">
+          <div>
+            <p class="eyebrow">THRESHOLD WINDOW</p>
+            <h2 class="section-title" id="threshold-title">22:00 —<br><span style="color:var(--red)">04:30</span></h2>
+            <p class="section-copy">매일 밤, 일상의 문이 가장 약해지는 시간. 바깥의 존재가 새로운 집에 다가가고, 문턱 안의 선택이 되돌릴 수 없게 되는 구간이다.</p>
+          </div>
+          <div class="clockline">
+            <article class="time-block"><small>22:00 / ACTIVATION</small><h3>문턱 시간이 시작된다</h3><p>도플갱어는 사람의 모습으로 현관문, 창문, 복도, 골목 등에 나타난다. 낯익은 목소리가 먼저 당신의 이름을 부를 수 있다.</p></article>
+            <article class="time-block"><small>02:00 / DEEP WINDOW</small><h3>대화는 더 정교해진다</h3><p>대화로 얻은 정보가 쌓일수록 그들의 거짓말은 자연스러워진다. 정답을 미리 알려 주는 질문은 검증이 아니라 학습이 된다.</p></article>
+            <article class="time-block"><small>04:30 / LOCKOUT</small><h3>바깥의 접근은 멈춘다</h3><p>새벽 이후 바깥에 있던 존재는 더 이상 새로운 집에 접근하거나 초대를 받을 수 없다. 단, 이미 안으로 들어온 존재는 낮에도 인간의 모습으로 머무를 수 있다.</p></article>
+          </div>
+        </div>
+        <aside class="prevention" style="margin-top:82px;max-width:680px">
+          <div class="paper-top">현관문 옆에 붙여 둔 메모 / 작성자 불명</div>
+          <h3>누군가 들어오고 싶어 한다면</h3>
+          <ol><li>문을 열기 전에 도어캠·창문·문틈으로 먼저 관찰한다.</li><li>정답을 알려 주지 않는, 최근의 사소한 기억을 묻는다.</li><li>감정의 설명보다, 반응을 살피는 습관을 본다.</li><li>확신이 없을 때는 문을 잠근 채 새벽을 기다린다.</li></ol>
+        </aside>
+      </div>
+    </section>
+
+    <section id="records" class="panel" aria-labelledby="records-title">
+      <div class="wrap time-section">
+        <p class="eyebrow">IDENTIFICATION NOTES</p>
+        <h2 class="section-title" id="records-title">보이는 것과,<br>말하는 것을 함께 보라.</h2>
+        <p class="section-copy">판별은 체포가 아니라 생존을 위한 관찰이다. 각 단서는 혼자서는 불완전하며, 여러 단서가 겹칠수록 의심도만 높아진다.</p>
+        <div class="rule-grid" style="margin-top:46px">
+          <article class="rule" data-no="VISUAL / 01"><span class="ghost">EYE</span><h3>외형 단서</h3><ul class="rule-list"><li>빛에 거의 반응하지 않는 동공, 홍채 가장자리의 이중 고리</li><li>반사면 속 움직임·눈 깜빡임의 미세한 지연</li><li>두 겹으로 보이거나 어긋난 그림자</li><li>입김·호흡·가슴 움직임이 서로 맞지 않음</li><li>목덜미·귀 뒤·손목의 피부색 번짐과 잔상</li></ul></article>
+          <article class="rule" data-no="DIALOGUE / 02"><span class="ghost">VOX</span><h3>대화와 행동 단서</h3><ul class="rule-list"><li>과거 사실은 알아도 그 기억의 감정과 의미를 설명하지 못함</li><li>너무 완벽하고 정리된 답을 하거나 상대의 표정을 먼저 살핌</li><li>공포·미안함을 어색하게 따라 하고, 질문으로 정보를 보정함</li><li>가족의 기억은 알아도 어제의 다툼·최근 습관에서 어긋남</li></ul></article>
+          <article class="rule" data-no="CAUTION / 03"><span class="ghost">?</span><h3>인간도 수상해 보인다</h3><p>진짜 인간도 피로, 부상, 질병, 공포, 조명, 거짓말, 기억 혼란 때문에 이상 징후를 보일 수 있다. 진행 중인 도플갱어화 역시 완전 진행 전까지는 인간으로 취급한다.</p></article>
+          <article class="rule" data-no="AFTER ENTRY / 04"><span class="ghost">IN</span><h3>도플갱어화</h3><p>집 안에서 밤을 보낼수록, 그리고 오래 대화하거나 자주 접촉할수록 영향은 누적된다. 초기의 기억 혼란과 감정 둔화는 천천히 눈·반사·그림자·호흡의 이상으로 번진다.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="characters" class="panel" aria-labelledby="characters-title">
+      <div class="wrap character-head">
+        <div class="character-topline"><div><p class="eyebrow">PERSON OF INTEREST / SHUFFLED CONTACT SHEETS</p><h2 class="section-title" id="characters-title">문 앞의 사람들</h2></div><div class="spoiler-control"><button type="button" class="spoiler-trigger" id="spoilerTrigger">확정 분류</button><span class="spoiler-state" id="spoilerState" hidden>분류 표시 중</span></div></div>
+        <div class="case-key"><span><b>●</b> OBSERVATION ONLY</span><span>8 SUBJECTS / 2 SEALED FILES</span></div>
+      </div>
+      <div class="wrap board">
+        <div class="character-grid" id="characterGrid"></div>
+      </div>
+    </section>
+
+    <footer><div class="wrap footer-line"><span>DOPPELGANGER / WORLD INTRO ARCHIVE</span><span>문을 조금 열어 보는 것은 초대가 아니다.</span></div></footer>
+  </main>
+
+  <div class="detail" id="detail" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="detailName">
+    <article class="detail-box">
+      <button class="detail-close" id="detailClose" aria-label="닫기">×</button>
+      <p class="detail-kicker" id="detailKicker">CASE FILE</p>
+      <div class="detail-layout">
+        <div class="detail-photo" id="detailPhoto">
+          <img id="detailImage" alt="" />
+          <div class="detail-photo-fallback"><span>NO IMAGE<br>CONNECTED</span></div>
+          <span class="detail-stamp">OBSERVATION<br>PHOTO</span>
+        </div>
+        <div class="detail-info">
+          <h2 id="detailName">—</h2>
+          <div class="detail-meta" id="detailMeta"></div>
+          <dl class="detail-grid"><dt>외형</dt><dd id="detailAppearance"></dd><dt>성향</dt><dd id="detailPersonality"></dd></dl>
+          <p id="detailQuote" class="character-quote"></p>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <div class="spoiler-modal" id="spoilerModal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="spoilerTitle">
+    <article class="spoiler-box">
+      <button type="button" class="spoiler-close" id="spoilerClose" aria-label="닫기">×</button>
+      <p class="spoiler-kicker">분류 열람 경고</p>
+      <h2 id="spoilerTitle">확정 인간과 확정 도플갱어를 확인하시겠습니까?</h2>
+      <p>확인 후에는 해당 인물 카드와 상세 정보에 분류가 표시됩니다.</p>
+      <div class="spoiler-actions"><button type="button" class="spoiler-yes" id="spoilerYes">YES</button><button type="button" class="spoiler-no" id="spoilerNo">NO</button></div>
+    </article>
+  </div>
+
+  <script>
+    const characterImages = {
+      '강한별': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EA%B0%95%ED%95%9C%EB%B3%84.jpg',
+      '권민석': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EA%B6%8C%EB%AF%BC%EC%84%9D.jpg',
+      '김봉달': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EA%B9%80%EB%B4%89%EB%8B%AC.jpg',
+      '도서안': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EB%8F%84%EC%84%9C%EC%95%88.jpg',
+      '백탁현': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EB%B0%B1%ED%83%81%ED%98%84.jpg',
+      '윤서아': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EC%9C%A4%EC%84%9C%EC%95%84.jpg',
+      '차이준': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%EC%B0%A8%EC%9D%B4%EC%A4%80.jpg',
+      '한유리': 'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/%ED%95%9C%EC%9C%A0%EB%A6%AC.jpg'
+    };
+
+    const characters = [
+      {name:'김봉달', confirmed:'doppelganger', gender:'남', age:'35', type:'bag', risk:'high', hair:'#2b2420', skin:'#ae9b7b', eye:'#090909', outfit:'#131516', file:'CASE 08 / SEALED', time:'02:19:08', visual:'건장한 체격. 검은 반팔티. 머리에 종이봉투를 뒤집어쓰고 있으며 눈 부분만 뚫려 있음. 얼굴은 끝까지 드러내지 않음.', personality:'느릿하고 둔해 보이지만 이상할 정도로 침착하다. 위협적인 상황에서도 당황하지 않고 사람의 반응을 조용히 관찰한다. 감정 표현이 적다.', quote:'봉달이. 배고프다.'},
+      {name:'윤서아', gender:'여', age:'28', type:'female', risk:'mid', hair:'#544239', skin:'#b9a384', eye:'#3b2c1d', outfit:'#b7a38a', file:'CASE 03 / LOCAL', time:'23:07:44', visual:'갈색 장발. 갈안. 베이지색 코트.', personality:'침착하고 현실적이다. 위급한 상황에서도 해야 할 일을 정리하며, 낯선 사람을 쉽게 믿지 않지만 곤란한 사람을 그냥 지나치지 못한다.', quote:'괜찮아요. 저도 무서우니까, 혼자 결정하지 말아요.'},
+      {name:'차이준', gender:'남', age:'26', type:'short', risk:'mid', hair:'#4a203d', skin:'#c7ad90', eye:'#8796a7', outfit:'#2f3034', file:'CASE 01 / NEIGHBOR', time:'00:41:13', visual:'자주빛 머리. 회청안. 피어싱. 라이더 재킷.', personality:'활발하고 붙임성이 좋다. 무서움을 숨기기 위해 더 시끄럽게 굴며, 사람을 혼자 두지 못하고 먼저 챙긴다.', quote:'일단 안에만 들어가면 안 돼? 나 밖에 더 있다간 진짜 울 것 같거든.'},
+      {name:'한유리', confirmed:'doppelganger', gender:'여', age:'27', type:'female', risk:'high', hair:'#151416', skin:'#c2ac9c', eye:'#65529d', outfit:'#eee8dc', file:'CASE 06 / UNSEALED', time:'03:32:51', visual:'흑발 장발. 자안. 흰색 블라우스. 검정 롱스커트.', personality:'타인의 불안과 공포를 관찰하는 것을 즐긴다. 거절당해도 화내지 않고 문 앞에 오래 남아 있으며, 침묵이나 공포의 기색을 흥미롭게 바라본다.', quote:'키시식… 왜 그렇게 무서워하세요? 무서워하세요?'},
+      {name:'권민석', confirmed:'human', gender:'남', age:'30', type:'short', risk:'low', hair:'#172334', skin:'#bb9f87', eye:'#344b63', outfit:'#66727b', file:'CASE 05 / VERIFIED', time:'01:09:34', visual:'남색 숏컷. 남안. 안경.', personality:'까칠하고 예민하다. 낯선 사람을 경계하며 쓸데없는 말을 싫어하지만, 판단을 못 내리는 사람이 있으면 짜증을 내면서도 대신 결정한다.', quote:'무서우면 무섭다고 하세요. 혼자 멋대로 판단해서 사고 치지 말고.'},
+      {name:'도서안', gender:'여', age:'19', type:'female', risk:'mid', hair:'#191819', skin:'#c9ae96', eye:'#ab282b', outfit:'#f0f0ec', file:'CASE 04 / STUDENT', time:'00:18:39', visual:'흑발 단발. 적안. 교복 셔츠.', personality:'낯가림이 거의 없고, 처음 보는 사람에게도 거리낌 없이 말을 건다. 위험한 상황에서도 겉으로는 태연한 척한다.', quote:'뭐예요, 진짜 사람인지 확인하는 중이에요?'},
+      {name:'백탁현', gender:'남', age:'22', type:'mask', risk:'mid', hair:'#111112', skin:'#bda58e', eye:'#8d9597', outfit:'#121314', file:'CASE 02 / MASKED', time:'22:33:27', visual:'흑발. 회안. 검정 후드티. 항상 검정 마스크를 쓴다.', personality:'말수가 극도로 적고 조용하다. 질문을 받아도 필요한 말만 짧게 대답하며, 자신의 이야기를 꺼내는 것을 매우 꺼린다.', quote:'…문, 열지 마.'},
+      {name:'강한별', confirmed:'human', gender:'여', age:'25', type:'female', risk:'low', hair:'#d8b13d', skin:'#c5a58b', eye:'#171719', outfit:'#a9232e', file:'CASE 07 / ESCAPED', time:'03:58:08', visual:'금발 포니테일. 흑안. 빨간 저지.', personality:'성격이 급하고 행동력이 강하다. 위험하다고 판단하면 생각보다 몸이 먼저 움직이며, 혼자 남겨지는 것을 싫어한다.', quote:'들일 거면 빨리 들이고, 아니면 문 닫아.'}
+    ].map(c => ({ ...c, image: characterImages[c.name] || '' }));
+
+    const grid = document.getElementById('characterGrid');
+    const displayOrder = ['도서안', '김봉달', '차이준', '권민석', '한유리', '백탁현', '강한별', '윤서아'];
+    const shownCharacters = displayOrder.map(name => characters.find(c => c.name === name));
+    const hasImage = url => Boolean(url && /^https?:\/\//i.test(url));
+    const safeAttr = value => String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    shownCharacters.forEach((c, i) => {
+      const btn = document.createElement('button');
+      const imageExists = hasImage(c.image);
+      btn.className = `case-card${c.confirmed ? ` confirmed-${c.confirmed}` : ''}`; btn.dataset.index = characters.indexOf(c); btn.dataset.type = c.type; btn.dataset.risk = c.risk; btn.dataset.char = c.name;
+      btn.style.setProperty('--hair', c.hair); btn.style.setProperty('--skin', c.skin); btn.style.setProperty('--eye', c.eye); btn.style.setProperty('--outfit', c.outfit);
+      const spoilerLabel = c.confirmed ? `<span class="spoiler-label ${c.confirmed}"><i class="identity-icon"></i><strong>${c.confirmed === 'human' ? '확정 인간' : '확정 도플갱어'}</strong></span>` : '';
+      btn.innerHTML = `<div class="photo${imageExists ? ' has-real-image' : ''}">${imageExists ? `<img src="${safeAttr(c.image)}" alt="${safeAttr(c.name)} 관찰 사진" loading="lazy" onerror="this.parentElement.classList.remove('has-real-image'); this.remove();">` : ''}<div class="portrait"><div class="halo"></div><div class="body"></div><div class="neck"></div><div class="head"></div><div class="hair"></div><i class="eye left"></i><i class="eye right"></i><div class="mask"></div><div class="bag"></div><div class="smear"></div><span class="scan-id">${c.file}</span><span class="timestamp">${c.time}</span></div>${spoilerLabel}</div><div class="tag-strip"><div class="file"><span>${c.gender} / ${c.age}</span></div><h3>${c.name}</h3><p>${c.visual}</p></div>`;
+      grid.appendChild(btn);
+    });
+
+    const detail = document.getElementById('detail');
+    const detailPhoto = document.getElementById('detailPhoto');
+    const detailImage = document.getElementById('detailImage');
+    const detailBox = document.querySelector('.detail-box');
+    const openDetail = (c) => {
+      const spoilersRevealed = document.body.classList.contains('spoilers-revealed');
+      const visibleClassification = spoilersRevealed ? (c.confirmed || '') : '';
+      detailBox.dataset.confirmed = visibleClassification;
+      document.getElementById('detailKicker').textContent = c.file + ' / ' + c.time;
+      document.getElementById('detailName').textContent = c.name;
+      const confirmedMeta = visibleClassification ? `<span class="spoiler-meta ${visibleClassification}">${visibleClassification === 'human' ? '확정 인간' : '확정 도플갱어'}</span>` : '';
+      document.getElementById('detailMeta').innerHTML = `<span>${c.gender} / ${c.age}</span><span>OBSERVATION FILE</span>${confirmedMeta}`;
+      document.getElementById('detailAppearance').textContent = c.visual;
+      document.getElementById('detailPersonality').textContent = c.personality;
+      document.getElementById('detailQuote').textContent = `“${c.quote}”`;
+      detailImage.alt = `${c.name} 관찰 사진`;
+      if (hasImage(c.image)) {
+        detailPhoto.classList.add('has-real-image');
+        detailImage.src = c.image;
+        detailImage.onerror = () => { detailPhoto.classList.remove('has-real-image'); detailImage.removeAttribute('src'); };
+      } else {
+        detailPhoto.classList.remove('has-real-image');
+        detailImage.removeAttribute('src');
+      }
+      detail.classList.add('open'); detail.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+    };
+    grid.addEventListener('click', e => { const card = e.target.closest('.case-card'); if(card) openDetail(characters[card.dataset.index]); });
+    const closeDetail = () => { detail.classList.remove('open'); detail.setAttribute('aria-hidden','true'); document.body.style.overflow = ''; };
+    document.getElementById('detailClose').addEventListener('click', closeDetail);
+    detail.addEventListener('click', e => { if(e.target === detail) closeDetail(); });
+    const spoilerModal = document.getElementById('spoilerModal');
+    const spoilerTrigger = document.getElementById('spoilerTrigger');
+    const spoilerState = document.getElementById('spoilerState');
+    const closeSpoiler = () => { spoilerModal.classList.remove('open'); spoilerModal.setAttribute('aria-hidden', 'true'); };
+    const revealSpoilers = () => {
+      document.body.classList.add('spoilers-revealed');
+      spoilerState.hidden = false;
+      spoilerTrigger.textContent = '확정 분류 표시 중';
+      spoilerTrigger.setAttribute('aria-pressed', 'true');
+      closeSpoiler();
+    };
+    spoilerTrigger.addEventListener('click', () => {
+      if (document.body.classList.contains('spoilers-revealed')) return;
+      spoilerModal.classList.add('open');
+      spoilerModal.setAttribute('aria-hidden', 'false');
+      document.getElementById('spoilerYes').focus();
+    });
+    document.getElementById('spoilerYes').addEventListener('click', revealSpoilers);
+    document.getElementById('spoilerNo').addEventListener('click', closeSpoiler);
+    document.getElementById('spoilerClose').addEventListener('click', closeSpoiler);
+    spoilerModal.addEventListener('click', e => { if (e.target === spoilerModal) closeSpoiler(); });
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      closeDetail();
+      closeSpoiler();
+    });
+
+    const tabs = document.querySelectorAll('.nav button');
+    tabs.forEach(btn => btn.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active')); btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(btn.dataset.tab).classList.add('active'); window.scrollTo({top:0, behavior:'smooth'});
+    }));
+
+    const transcriptLines = [
+      '“경찰청은 오늘 밤, 정체를 확인할 수 없는 방문객에게 문을 열지 말 것을 당부했습니다…”',
+      '“목소리와 얼굴이 가족과 같더라도, 최근의 기억과 감정은 확인해야 한다는 설명입니다…”',
+      '“현재 일부 지역에서 자신과 똑같은 사람을 봤다는 신고가 접수되고 있습니다. 반복합니다…”',
+      '“문을 조금 여는 것과 대화만으로는 초대가 성립하지 않습니다. 그러나 명확한 허락은…”'
+    ];
+    const transcript = document.getElementById('newsTranscript');
+    let transcriptIndex = 0;
+    setInterval(() => {
+      transcriptIndex = (transcriptIndex + 1) % transcriptLines.length;
+      transcript.classList.remove('glitching');
+      void transcript.offsetWidth;
+      transcript.textContent = transcriptLines[transcriptIndex];
+      transcript.classList.add('glitching');
+    }, 3100);
+    const broadcastClock = document.getElementById('broadcastClock');
+    let sec = 0;
+    setInterval(() => { sec += 1; const h = String(Math.floor(sec / 3600)).padStart(2,'0'); const m = String(Math.floor((sec % 3600) / 60)).padStart(2,'0'); const s = String(sec % 60).padStart(2,'0'); broadcastClock.textContent = `${h}:${m}:${s}`; }, 1000);
+
+    const audioControl = document.getElementById('audioControl');
+    const soundToggle = document.getElementById('soundToggle');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const bgmAudio = document.getElementById('bgmAudio');
+
+    const BGM_SOURCES = [
+      'https://raw.githubusercontent.com/deokc/DOPPELGANGER/refs/heads/main/ww01.mp3',
+      'https://raw.githubusercontent.com/deokc/DOPPELGANGER/main/ww01.mp3',
+      'https://github.com/deokc/DOPPELGANGER/raw/refs/heads/main/ww01.mp3'
+    ];
+
+    let currentBgmSource = 0;
+    let bgmStarted = false;
+    let muted = false;
+    let wantsPlayback = false;
+    let savedVolume = Number(volumeSlider.value) / 100;
+
+    bgmAudio.loop = true;
+    bgmAudio.volume = savedVolume;
+
+    function loadBgmSource(index = 0) {
+      currentBgmSource = index;
+      bgmAudio.src = BGM_SOURCES[currentBgmSource];
+      bgmAudio.load();
+    }
+
+    function setSoundUi() {
+      const active = bgmStarted && !bgmAudio.paused && !muted && Number(volumeSlider.value) > 0;
+      audioControl.classList.toggle('playing', active);
+      soundToggle.textContent = active ? 'MUTE' : 'SOUND';
+      soundToggle.setAttribute('aria-label', active ? '배경음 끄기' : '배경음 켜기');
+    }
+
+    async function startBgm() {
+      wantsPlayback = true;
+      if (!bgmAudio.src) loadBgmSource(0);
+
+      const requested = Number(volumeSlider.value) / 100;
+      muted = requested === 0;
+      bgmAudio.volume = muted ? 0 : requested;
+
+      try {
+        await bgmAudio.play();
+        bgmStarted = true;
+      } catch (error) {
+      }
+      setSoundUi();
+    }
+
+    function applyVolume() {
+      const requested = Number(volumeSlider.value) / 100;
+      if (requested > 0) savedVolume = requested;
+      muted = requested === 0;
+      bgmAudio.volume = muted ? 0 : requested;
+      setSoundUi();
+    }
+
+    bgmAudio.addEventListener('playing', () => {
+      bgmStarted = true;
+      setSoundUi();
+    });
+
+    bgmAudio.addEventListener('pause', setSoundUi);
+
+    bgmAudio.addEventListener('error', async () => {
+      if (currentBgmSource >= BGM_SOURCES.length - 1) {
+        setSoundUi();
+        return;
+      }
+      loadBgmSource(currentBgmSource + 1);
+      if (wantsPlayback) {
+        try {
+          await bgmAudio.play();
+          bgmStarted = true;
+        } catch (error) {
+        }
+      }
+      setSoundUi();
+    });
+
+    loadBgmSource(0);
+
+    document.addEventListener('pointerdown', () => { startBgm(); }, { once: true, capture: true });
+
+    soundToggle.addEventListener('click', async () => {
+      if (!bgmStarted || bgmAudio.paused) {
+        if (Number(volumeSlider.value) === 0) volumeSlider.value = String(Math.max(1, Math.round(savedVolume * 100)));
+        applyVolume();
+        await startBgm();
+        return;
+      }
+
+      const nextValue = (!muted && Number(volumeSlider.value) > 0)
+        ? 0
+        : Math.max(1, Math.round(savedVolume * 100));
+      volumeSlider.value = String(nextValue);
+      applyVolume();
+      if (nextValue > 0) await startBgm();
+    });
+
+    volumeSlider.addEventListener('input', async () => {
+      applyVolume();
+      if (Number(volumeSlider.value) > 0) await startBgm();
+    });
+
+    setSoundUi();
+
+    const broadcast = document.getElementById('broadcast');
+    const site = document.getElementById('site');
+    let entered = false;
+    function enterSite(){
+      if (entered) return;
+      entered = true;
+      broadcast.classList.add('exit');
+      site.classList.add('ready');
+      setTimeout(() => broadcast.remove(), 1000);
+    }
+    document.getElementById('enterSite').addEventListener('click', enterSite);
+  </script>
+</body>
+</html>
